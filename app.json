@@ -4,10 +4,10 @@
     "slug": "StudyChat",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/turquoise black minimalist chat book logo design (1).png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/turquoise black minimalist chat book logo design (1).png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -19,11 +19,11 @@
       "package": "com.kiu.studychat", 
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png"
+        "foregroundImage": "./assets/turquoise black minimalist chat book logo design (1).png"
       }
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/for title.png"
     }
   }
 }
