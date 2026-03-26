@@ -47,7 +47,7 @@ const onSend = useCallback(async (newMessages = []) => {
       process.env.EXPO_PUBLIC_APPWRITE_COLLECTION_ID, 
       ID.unique(),
       {
-        senderId: user.$id, // This was crashing because user was null
+        senderId: user.$id, 
         receiverId: "group_chat",
         content: text,
         timestamp: new Date().toISOString(),
