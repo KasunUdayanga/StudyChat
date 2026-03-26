@@ -31,33 +31,36 @@ export default function App() {
   }, []);
 
 
-  const onSend = useCallback(
-    async (newMessages = []) => {
-      const { text } = newMessages[0];
+const onSend = useCallback(async (newMessages = []) => {
+  // 1. ADD THIS SAFETY CHECK
+  if (!user || !user.$id) {
+    console.error("User not authenticated yet");
+    alert("Please wait, connecting to server...");
+    return;
+  }
 
-      try {
-        await databases.createDocument(
-          process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID,
-          process.env.EXPO_PUBLIC_APPWRITE_COLLECTION_ID,
-          ID.unique(), 
-          {
-            senderId: user.$id, 
-            receiverId: "group_chat", 
-            content: text,
-            timestamp: new Date().toISOString(),
-            status: "sent", 
-            messageType: "text", 
-          }
-        );
-        setMessages((previousMessages) =>
-          GiftedChat.append(previousMessages, newMessages)
-        );
-      } catch (error) {
-        console.error("Error sending message:", error);
+  const { text } = newMessages[0];
+  
+  try {
+    await databases.createDocument(
+      process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID, 
+      process.env.EXPO_PUBLIC_APPWRITE_COLLECTION_ID, 
+      ID.unique(),
+      {
+        senderId: user.$id, // This was crashing because user was null
+        receiverId: "group_chat",
+        content: text,
+        timestamp: new Date().toISOString(),
+        status: "sent",
+        messageType: "text",
       }
-    },
-    [user]
-  );
+    );
+    
+    setMessages(previousMessages => GiftedChat.append(previousMessages, newMessages));
+  } catch (error) {
+    console.error("Error sending message:", error);
+  }
+}, [user]); // user is a dependency here
 
   if (loading) {
     return (
