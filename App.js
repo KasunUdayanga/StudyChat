@@ -15,6 +15,7 @@ import { account, databases, ID, Query } from "./appwrite";
 import LoginScreen from "./screens/LoginScreen";
 import RegisterScreen from "./screens/RegisterScreen";
 import ChatScreen from "./screens/ChatScreen";
+import MembersScreen from "./screens/MembersScreen";
 
 const Stack = createStackNavigator();
 
@@ -66,10 +67,11 @@ export default function App() {
         const formatted = res.documents.map((doc) => ({
           _id: doc.$id,
           text: doc.content || doc.text,
+          receiverId: doc.receiverId,
           createdAt: new Date(doc.timestamp || doc.$createdAt || doc.createdAt),
           user: {
             _id: doc.senderId,
-            name: "User",
+            name: "Member",
           },
         }));
 
@@ -87,7 +89,7 @@ export default function App() {
   }, [user]);
 
   const onSend = useCallback(
-    async (newMessages = []) => {
+    async (newMessages = [], receiverId = "group_chat") => {
       if (!user) return;
       const { text } = newMessages[0];
 
@@ -98,7 +100,7 @@ export default function App() {
           ID.unique(),
           {
             senderId: user.$id,
-            receiverId: "group_chat",
+            receiverId,
             content: text,
             timestamp: new Date().toISOString(),
             status: "sent",
@@ -185,6 +187,14 @@ export default function App() {
               />
             )}
           </Stack.Screen>
+          <Stack.Screen
+            name="Members"
+            options={{ title: "Members", headerShown: false }}
+          >
+            {(props) => (
+              <MembersScreen {...props} user={user} messages={messages} />
+            )}
+          </Stack.Screen>
         </Stack.Navigator>
       ) : (
         <Stack.Navigator>
@@ -217,8 +227,8 @@ export default function App() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  loading:{
-    alignSelf:"center",
+  loading: {
+    alignSelf: "center",
   },
   splashContainer: {
     flex: 1,
@@ -230,6 +240,6 @@ const styles = StyleSheet.create({
   splashIcon: {
     width: 250,
     height: 150,
-    borderRadius:23,
+    borderRadius: 23,
   },
 });

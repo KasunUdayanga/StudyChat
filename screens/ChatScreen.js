@@ -22,12 +22,16 @@ export default function ChatScreen({
   onLogout,
   errorMessage,
   onDismissError,
+  navigation,
+  route,
 }) {
   const [input, setInput] = useState("");
   const [localMessages, setLocalMessages] = useState([]);
   const listRef = useRef(null);
 
   const userId = user?.$id || "anonymous";
+  const targetUser = route?.params?.privateUser;
+  const isPrivate = Boolean(targetUser);
 
   // keep local list in sync and show optimistic sends
   useEffect(() => {
@@ -40,13 +44,32 @@ export default function ChatScreen({
     );
   }, [localMessages]);
 
+  const displayMessages = useMemo(() => {
+    if (!isPrivate) {
+      return sortedMessages.filter(
+        (m) => !m.receiverId || m.receiverId === "group_chat"
+      );
+    }
+
+    return sortedMessages.filter((m) => {
+      const senderId = m?.user?._id;
+      const receiverId = m?.receiverId;
+      const isOutgoing = senderId === userId && receiverId === targetUser?.id;
+      const isIncoming = senderId === targetUser?.id && receiverId === userId;
+      return isOutgoing || isIncoming;
+    });
+  }, [isPrivate, sortedMessages, targetUser, userId]);
+
   const handleSend = () => {
     const text = input.trim();
     if (!text) return;
 
+    const receiverId = isPrivate ? targetUser?.id : "group_chat";
+
     const newMessage = {
       _id: `${Date.now()}`,
       text,
+      receiverId,
       createdAt: new Date(),
       user: {
         _id: userId,
@@ -56,7 +79,7 @@ export default function ChatScreen({
 
     setLocalMessages((prev) => [newMessage, ...prev]);
     setInput("");
-    onSend([newMessage]);
+    onSend([newMessage], receiverId);
     // scroll to bottom (inverted list -> offset 0)
     requestAnimationFrame(() => {
       listRef.current?.scrollToOffset({ offset: 0, animated: true });
@@ -65,7 +88,17 @@ export default function ChatScreen({
 
   return (
     <SafeAreaView style={styles.container}>
-      <ChatHeader userName={user?.name} onLogout={onLogout} />
+      <ChatHeader
+        userName={user?.name}
+        onLogout={onLogout}
+        onOpenMembers={() => navigation?.navigate("Members")}
+        conversationLabel={
+          isPrivate ? `Private ${targetUser?.name}` : "StudyChat"
+        }
+        onClearPrivate={
+          isPrivate ? () => navigation?.setParams({ privateUser: null }) : null
+        }
+      />
 
       {/* Status Indicators */}
       {errorMessage && (
@@ -94,7 +127,7 @@ export default function ChatScreen({
         <View style={{ flex: 1 }}>
           <MessageList
             ref={listRef}
-            messages={sortedMessages}
+            messages={displayMessages}
             userId={userId}
             onContentSizeChange={() =>
               requestAnimationFrame(() =>
@@ -124,6 +157,8 @@ ChatScreen.propTypes = {
   onLogout: PropTypes.func,
   errorMessage: PropTypes.string,
   onDismissError: PropTypes.func,
+  navigation: PropTypes.object,
+  route: PropTypes.object,
 };
 
 ChatScreen.defaultProps = {
@@ -134,6 +169,8 @@ ChatScreen.defaultProps = {
   onLogout: () => {},
   errorMessage: null,
   onDismissError: null,
+  navigation: null,
+  route: null,
 };
 
 const styles = StyleSheet.create({
