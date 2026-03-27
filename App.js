@@ -33,7 +33,7 @@ export default function App() {
   };
 
   useEffect(() => {
-    const timer = setTimeout(() => setSplashMinDone(true), 5000);
+    const timer = setTimeout(() => setSplashMinDone(true), 2000);
     const checkUser = async () => {
       try {
         const currentAccount = await account.get();
