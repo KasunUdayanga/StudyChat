@@ -1,10 +1,23 @@
 import React, { forwardRef } from "react";
-import { FlatList, View, Text, StyleSheet } from "react-native";
+import {
+  FlatList,
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+} from "react-native";
 
 const MessageList = forwardRef(
-  ({ messages, userId, onContentSizeChange }, ref) => {
+  ({ messages, userId, onContentSizeChange, onDelete }, ref) => {
     const renderMessage = ({ item }) => {
       const isMine = item?.user?._id === userId;
+      const hasImage = item?.messageType === "image" && item?.imageUrl;
+      const timeString = new Date(item?.createdAt).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+
       return (
         <View
           style={[
@@ -25,15 +38,28 @@ const MessageList = forwardRef(
               isMine ? styles.bubbleRight : styles.bubbleLeft,
             ]}
           >
-            <Text style={[styles.messageText, isMine && { color: "#fff" }]}>
-              {item?.text}
-            </Text>
-            <Text style={styles.messageMeta}>
-              {new Date(item?.createdAt).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </Text>
+            {isMine && onDelete && !!item?._id && (
+              <TouchableOpacity
+                style={styles.deleteBtn}
+                onPress={() => onDelete(item)}
+                accessibilityLabel="Delete message"
+              >
+                <Text style={styles.deleteText}>🗑️</Text>
+              </TouchableOpacity>
+            )}
+            {hasImage && (
+              <Image
+                source={{ uri: item.imageUrl }}
+                style={styles.messageImage}
+                resizeMode="cover"
+              />
+            )}
+            {!!item?.text && (
+              <Text style={[styles.messageText, isMine && { color: "#fff" }]}>
+                {item?.text}
+              </Text>
+            )}
+            <Text style={styles.messageMeta}>{timeString}</Text>
           </View>
         </View>
       );
@@ -115,6 +141,26 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "#e5e7eb",
     textAlign: "right",
+  },
+  messageImage: {
+    width: 220,
+    height: 220,
+    borderRadius: 12,
+    marginBottom: 6,
+    backgroundColor: "#0f172a",
+  },
+  deleteBtn: {
+    position: "absolute",
+    top: 6,
+    left: -35,
+    padding: 8,
+    borderRadius: 16,
+    backgroundColor: "#0f172a88",
+  },
+  deleteText: {
+    color: "#fca5a5",
+    fontWeight: "800",
+    fontSize: 14,
   },
 });
 

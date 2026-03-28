@@ -9,10 +9,12 @@ import {
   Text,
   TouchableOpacity,
 } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 import { SafeAreaView } from "react-native-safe-area-context";
 import ChatHeader from "../components/ChatHeader";
 import MessageList from "../components/MessageList";
 import MessageInput from "../components/MessageInput";
+import { storage, ID, bucketId, Permission, Role } from "../appwrite";
 
 export default function ChatScreen({
   user,
@@ -22,6 +24,7 @@ export default function ChatScreen({
   onLogout,
   errorMessage,
   onDismissError,
+  onDelete,
   navigation,
   route,
 }) {
@@ -71,6 +74,7 @@ export default function ChatScreen({
       text,
       receiverId,
       createdAt: new Date(),
+      messageType: "text",
       user: {
         _id: userId,
         name: user?.name || "User",
@@ -80,10 +84,104 @@ export default function ChatScreen({
     setLocalMessages((prev) => [newMessage, ...prev]);
     setInput("");
     onSend([newMessage], receiverId);
-    // scroll to bottom (inverted list -> offset 0)
     requestAnimationFrame(() => {
       listRef.current?.scrollToOffset({ offset: 0, animated: true });
     });
+  };
+
+  const handleAttach = async () => {
+    if (!bucketId) {
+      alert("Image upload is not configured. Missing bucket ID.");
+      return;
+    }
+
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      alert("Permission is required to access photos.");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+    });
+
+    if (result.canceled || !result.assets?.length) return;
+
+    const asset = result.assets[0];
+    const receiverId = isPrivate ? targetUser?.id : "group_chat";
+
+    const optimisticMessage = {
+      _id: `${Date.now()}`,
+      text: "",
+      imageUrl: asset.uri,
+      receiverId,
+      messageType: "image",
+      createdAt: new Date(),
+      user: { _id: userId, name: user?.name || "You" },
+      pending: true,
+    };
+
+    setLocalMessages((prev) => [optimisticMessage, ...prev]);
+
+    try {
+      const fileId = ID.unique();
+      let filePayload;
+      const filename = `image-${fileId}.jpg`;
+
+      if (Platform.OS === "web") {
+        const response = await fetch(asset.uri);
+        const blob = await response.blob();
+        filePayload = new File([blob], filename, {
+          type: blob.type || asset.mimeType || "image/jpeg",
+        });
+      } else {
+        filePayload = {
+          uri: asset.uri,
+          name: filename,
+          type: asset.mimeType || "image/jpeg",
+        };
+      }
+
+      await storage.createFile(bucketId, fileId, filePayload, [
+        Permission.read(Role.any()),
+        Permission.write(Role.user(userId)),
+      ]);
+
+      const imageUrl = storage.getFileView(bucketId, fileId);
+
+      const sentMessage = {
+        ...optimisticMessage,
+        _id: fileId,
+        imageUrl,
+        fileId,
+        pending: false,
+      };
+
+      // replace optimistic message and send to backend
+      setLocalMessages((prev) => {
+        const filtered = prev.filter((m) => m._id !== optimisticMessage._id);
+        return [sentMessage, ...filtered];
+      });
+
+      onSend([sentMessage], receiverId);
+    } catch (error) {
+      // remove optimistic and surface error
+      setLocalMessages((prev) =>
+        prev.filter((m) => m._id !== optimisticMessage._id)
+      );
+      alert("Failed to upload image. Please try again.");
+      console.error("Image upload failed", error);
+    }
+  };
+
+  const handleDelete = (message) => {
+    const messageId = message?._id;
+    // remove locally for immediate feedback
+    setLocalMessages((prev) => prev.filter((m) => m._id !== messageId));
+    if (onDelete && messageId) {
+      onDelete(messageId);
+    }
   };
 
   return (
@@ -129,6 +227,7 @@ export default function ChatScreen({
             ref={listRef}
             messages={displayMessages}
             userId={userId}
+            onDelete={handleDelete}
             onContentSizeChange={() =>
               requestAnimationFrame(() =>
                 listRef.current?.scrollToOffset({ offset: 0, animated: true })
@@ -140,6 +239,7 @@ export default function ChatScreen({
           value={input}
           onChangeText={setInput}
           onSend={handleSend}
+          onAttach={handleAttach}
         />
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -157,6 +257,7 @@ ChatScreen.propTypes = {
   onLogout: PropTypes.func,
   errorMessage: PropTypes.string,
   onDismissError: PropTypes.func,
+  onDelete: PropTypes.func,
   navigation: PropTypes.object,
   route: PropTypes.object,
 };
@@ -169,6 +270,7 @@ ChatScreen.defaultProps = {
   onLogout: () => {},
   errorMessage: null,
   onDismissError: null,
+  onDelete: null,
   navigation: null,
   route: null,
 };

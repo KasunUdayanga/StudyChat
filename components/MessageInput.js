@@ -8,7 +8,12 @@ import {
   StyleSheet,
 } from "react-native";
 
-export default function MessageInput({ value, onChangeText, onSend }) {
+export default function MessageInput({
+  value,
+  onChangeText,
+  onSend,
+  onAttach,
+}) {
   const disabled = !value.trim();
 
   return (
@@ -21,6 +26,10 @@ export default function MessageInput({ value, onChangeText, onSend }) {
         onChangeText={onChangeText}
         multiline
       />
+      <TouchableOpacity style={styles.attachButton} onPress={onAttach}>
+        <Text style={styles.attachButtonText}>Photo</Text>
+      </TouchableOpacity>
+
       <TouchableOpacity
         style={[styles.sendButton, disabled && styles.sendButtonDisabled]}
         onPress={onSend}
@@ -36,12 +45,14 @@ MessageInput.propTypes = {
   value: PropTypes.string,
   onChangeText: PropTypes.func,
   onSend: PropTypes.func,
+  onAttach: PropTypes.func,
 };
 
 MessageInput.defaultProps = {
   value: "",
   onChangeText: () => {},
   onSend: () => {},
+  onAttach: () => {},
 };
 
 const styles = StyleSheet.create({
@@ -88,5 +99,18 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "800",
     letterSpacing: 0.2,
+  },
+  attachButton: {
+    marginLeft: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: "#1f2937",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#374151",
+  },
+  attachButtonText: {
+    color: "#e5e7eb",
+    fontWeight: "700",
   },
 });

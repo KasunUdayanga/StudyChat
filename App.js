@@ -11,7 +11,7 @@ import {
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import { GiftedChat } from "react-native-gifted-chat";
-import { account, databases, ID, Query } from "./appwrite";
+import { account, databases, storage, bucketId, ID, Query } from "./appwrite";
 import LoginScreen from "./screens/LoginScreen";
 import RegisterScreen from "./screens/RegisterScreen";
 import ChatScreen from "./screens/ChatScreen";
@@ -64,16 +64,36 @@ export default function App() {
           [Query.orderDesc("timestamp"), Query.limit(50)]
         );
 
-        const formatted = res.documents.map((doc) => ({
-          _id: doc.$id,
-          text: doc.content || doc.text,
-          receiverId: doc.receiverId,
-          createdAt: new Date(doc.timestamp || doc.$createdAt || doc.createdAt),
-          user: {
-            _id: doc.senderId,
-            name: "Member",
-          },
-        }));
+        const formatted = res.documents.map((doc) => {
+          const isImage = doc.messageType === "image";
+
+          let imageUrl = null;
+          if (isImage && doc.content) {
+            const isFullUrl =
+              typeof doc.content === "string" && doc.content.startsWith("http");
+            if (isFullUrl) {
+              imageUrl = doc.content;
+            } else if (bucketId) {
+              imageUrl = storage.getFileView(bucketId, doc.content);
+            }
+          }
+
+          return {
+            _id: doc.$id,
+            text: isImage ? "" : doc.content || doc.text,
+            imageUrl,
+            receiverId: doc.receiverId,
+            messageType: doc.messageType,
+            fileId: isImage ? doc.content : null,
+            createdAt: new Date(
+              doc.timestamp || doc.$createdAt || doc.createdAt
+            ),
+            user: {
+              _id: doc.senderId,
+              name: "Member",
+            },
+          };
+        });
 
         setMessages(formatted);
         setErrorMessage(null);
@@ -91,20 +111,26 @@ export default function App() {
   const onSend = useCallback(
     async (newMessages = [], receiverId = "group_chat") => {
       if (!user) return;
-      const { text } = newMessages[0];
+      const message = newMessages[0];
+      const isImage = message?.messageType === "image";
+      const content = isImage
+        ? message?.fileId || message?.imageUrl
+        : message?.text;
 
       try {
+        const documentId = message?._id || ID.unique();
+
         await databases.createDocument(
           process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID,
           process.env.EXPO_PUBLIC_APPWRITE_COLLECTION_ID,
-          ID.unique(),
+          documentId,
           {
             senderId: user.$id,
             receiverId,
-            content: text,
+            content,
             timestamp: new Date().toISOString(),
             status: "sent",
-            messageType: "text",
+            messageType: isImage ? "image" : "text",
           }
         );
         setMessages((previousMessages) =>
@@ -116,6 +142,24 @@ export default function App() {
       }
     },
     [user]
+  );
+
+  const onDelete = useCallback(
+    async (messageId) => {
+      if (!messageId) return;
+      try {
+        await databases.deleteDocument(
+          process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID,
+          process.env.EXPO_PUBLIC_APPWRITE_COLLECTION_ID,
+          messageId
+        );
+      } catch (error) {
+        showApiError("Failed to delete message", error);
+      } finally {
+        setMessages((prev) => prev.filter((m) => m._id !== messageId));
+      }
+    },
+    [databases]
   );
 
   const handleLogin = async (email, password) => {
@@ -180,6 +224,7 @@ export default function App() {
                 user={user}
                 messages={messages}
                 onSend={onSend}
+                onDelete={onDelete}
                 refreshing={loadingMessages}
                 onLogout={handleLogout}
                 errorMessage={errorMessage}
