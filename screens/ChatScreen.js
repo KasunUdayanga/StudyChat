@@ -158,7 +158,6 @@ export default function ChatScreen({
         pending: false,
       };
 
-      // replace optimistic message and send to backend
       setLocalMessages((prev) => {
         const filtered = prev.filter((m) => m._id !== optimisticMessage._id);
         return [sentMessage, ...filtered];
@@ -166,7 +165,6 @@ export default function ChatScreen({
 
       onSend([sentMessage], receiverId);
     } catch (error) {
-      // remove optimistic and surface error
       setLocalMessages((prev) =>
         prev.filter((m) => m._id !== optimisticMessage._id)
       );
@@ -177,10 +175,9 @@ export default function ChatScreen({
 
   const handleDelete = (message) => {
     const messageId = message?._id;
-    // remove locally for immediate feedback
     setLocalMessages((prev) => prev.filter((m) => m._id !== messageId));
     if (onDelete && messageId) {
-      onDelete(messageId);
+      onDelete(message);
     }
   };
 

@@ -65,26 +65,27 @@ export default function App() {
         );
 
         const formatted = res.documents.map((doc) => {
-          const isImage = doc.messageType === "image";
+          const content = doc.content || doc.text;
+          const looksLikeUrl =
+            typeof content === "string" && content.startsWith("http");
+          const isImage = doc.messageType === "image" || looksLikeUrl;
 
           let imageUrl = null;
-          if (isImage && doc.content) {
-            const isFullUrl =
-              typeof doc.content === "string" && doc.content.startsWith("http");
-            if (isFullUrl) {
-              imageUrl = doc.content;
+          if (isImage && content) {
+            if (looksLikeUrl) {
+              imageUrl = content;
             } else if (bucketId) {
-              imageUrl = storage.getFileView(bucketId, doc.content);
+              imageUrl = storage.getFileView(bucketId, content);
             }
           }
 
           return {
             _id: doc.$id,
-            text: isImage ? "" : doc.content || doc.text,
+            text: isImage ? "" : content,
             imageUrl,
             receiverId: doc.receiverId,
-            messageType: doc.messageType,
-            fileId: isImage ? doc.content : null,
+            messageType: doc.messageType || (isImage ? "image" : "text"),
+            fileId: isImage ? content : null,
             createdAt: new Date(
               doc.timestamp || doc.$createdAt || doc.createdAt
             ),
@@ -145,14 +146,30 @@ export default function App() {
   );
 
   const onDelete = useCallback(
-    async (messageId) => {
+    async (message) => {
+      const messageId = message?._id;
       if (!messageId) return;
+
       try {
+        // Delete document
         await databases.deleteDocument(
           process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID,
           process.env.EXPO_PUBLIC_APPWRITE_COLLECTION_ID,
           messageId
         );
+
+        // If this was an image with a stored file, delete from storage as well
+        const fileId = message?.fileId;
+        const isImage =
+          (message?.messageType === "image" || fileId) && bucketId && fileId;
+        if (isImage) {
+          try {
+            await storage.deleteFile(bucketId, fileId);
+          } catch (err) {
+            // ignore if file already gone
+            console.warn("Failed to delete image file", err?.message || err);
+          }
+        }
       } catch (error) {
         showApiError("Failed to delete message", error);
       } finally {

@@ -1,4 +1,4 @@
-import React, { forwardRef } from "react";
+import React, { forwardRef, useState } from "react";
 import {
   FlatList,
   View,
@@ -10,9 +10,11 @@ import {
 
 const MessageList = forwardRef(
   ({ messages, userId, onContentSizeChange, onDelete }, ref) => {
+    const [failedImages, setFailedImages] = useState({});
     const renderMessage = ({ item }) => {
       const isMine = item?.user?._id === userId;
       const hasImage = item?.messageType === "image" && item?.imageUrl;
+      const imageFailed = failedImages[item?._id];
       const timeString = new Date(item?.createdAt).toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit",
@@ -47,12 +49,20 @@ const MessageList = forwardRef(
                 <Text style={styles.deleteText}>🗑️</Text>
               </TouchableOpacity>
             )}
-            {hasImage && (
+            {hasImage && !imageFailed && (
               <Image
                 source={{ uri: item.imageUrl }}
                 style={styles.messageImage}
                 resizeMode="cover"
+                onError={() =>
+                  setFailedImages((prev) => ({ ...prev, [item?._id]: true }))
+                }
               />
+            )}
+            {hasImage && imageFailed && (
+              <View style={[styles.messageImage, styles.imageFallback]}>
+                <Text style={styles.imageFallbackText}>Image unavailable</Text>
+              </View>
             )}
             {!!item?.text && (
               <Text style={[styles.messageText, isMine && { color: "#fff" }]}>
