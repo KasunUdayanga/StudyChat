@@ -1,6 +1,7 @@
 import React from "react";
 import PropTypes from "prop-types";
 import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function ChatHeader({
   userName,
@@ -27,16 +28,20 @@ export default function ChatHeader({
       <View style={styles.actions}>
         {onClearPrivate && (
           <TouchableOpacity style={styles.groupChip} onPress={onClearPrivate}>
-            <Text style={styles.groupChipText}>Group </Text>
+            <Ionicons
+              name="chatbubble-ellipses-outline"
+              size={18}
+              color="#e5e7eb"
+            />
           </TouchableOpacity>
         )}
         {onOpenMembers && (
           <TouchableOpacity style={styles.membersChip} onPress={onOpenMembers}>
-            <Text style={styles.membersChipText}>Members</Text>
+            <Ionicons name="people-outline" size={20} color="#e5e7eb" />
           </TouchableOpacity>
         )}
         <TouchableOpacity style={styles.logoutChip} onPress={onLogout}>
-          <Text style={styles.logoutChipText}>Logout</Text>
+          <Ionicons name="log-out-outline" size={18} color="#7f1d1d" />
         </TouchableOpacity>
       </View>
     </View>

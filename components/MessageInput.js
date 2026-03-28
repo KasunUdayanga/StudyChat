@@ -1,12 +1,7 @@
 import React from "react";
 import PropTypes from "prop-types";
-import {
-  View,
-  TextInput,
-  TouchableOpacity,
-  Text,
-  StyleSheet,
-} from "react-native";
+import { View, TextInput, TouchableOpacity, StyleSheet } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function MessageInput({
   value,
@@ -27,7 +22,7 @@ export default function MessageInput({
         multiline
       />
       <TouchableOpacity style={styles.attachButton} onPress={onAttach}>
-        <Text style={styles.attachButtonText}>Photo</Text>
+        <Ionicons name="image-outline" size={20} color="#e5e7eb" />
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -35,7 +30,12 @@ export default function MessageInput({
         onPress={onSend}
         disabled={disabled}
       >
-        <Text style={styles.sendButtonText}>Send</Text>
+        <Ionicons
+          name="paper-plane-outline"
+          size={20}
+          color={disabled ? "#9ca3af" : "#fff"}
+          style={{ transform: [{ rotate: "-5deg" }] }}
+        />
       </TouchableOpacity>
     </View>
   );
