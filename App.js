@@ -7,6 +7,7 @@ import {
   Text,
   Alert,
   Image,
+  Platform,
 } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
@@ -64,37 +65,61 @@ export default function App() {
           [Query.orderDesc("timestamp"), Query.limit(50)]
         );
 
-        const formatted = res.documents.map((doc) => {
-          const content = doc.content || doc.text;
-          const looksLikeUrl =
-            typeof content === "string" && content.startsWith("http");
-          const isImage = doc.messageType === "image" || looksLikeUrl;
+        const formatted = await Promise.all(
+          res.documents.map(async (doc) => {
+            const content = doc.content || doc.text;
+            const looksLikeUrl =
+              typeof content === "string" && content.startsWith("http");
+            const isImage = doc.messageType === "image" || looksLikeUrl;
 
-          let imageUrl = null;
-          if (isImage && content) {
-            if (looksLikeUrl) {
-              imageUrl = content;
-            } else if (bucketId) {
-              imageUrl = storage.getFileView(bucketId, content);
+            let imageUrl = null;
+            if (isImage && content) {
+              if (looksLikeUrl) {
+                imageUrl = content;
+              } else if (bucketId) {
+                try {
+                  const fileViewResult = await storage.getFileView(
+                    bucketId,
+                    content
+                  );
+                  if (Platform.OS === "web") {
+                    const buf = fileViewResult;
+                    const blob = new Blob([buf], { type: "image/jpeg" });
+                    imageUrl = URL.createObjectURL(blob);
+                  } else if (typeof fileViewResult === "string") {
+                    imageUrl = fileViewResult;
+                  } else if (fileViewResult instanceof ArrayBuffer) {
+                    const blob = new Blob([fileViewResult], {
+                      type: "image/jpeg",
+                    });
+                    imageUrl = URL.createObjectURL(blob);
+                  } else {
+                    imageUrl = fileViewResult;
+                  }
+                } catch (err) {
+                  console.warn("getFileView failed", err?.message || err);
+                  imageUrl = null;
+                }
+              }
             }
-          }
 
-          return {
-            _id: doc.$id,
-            text: isImage ? "" : content,
-            imageUrl,
-            receiverId: doc.receiverId,
-            messageType: doc.messageType || (isImage ? "image" : "text"),
-            fileId: isImage ? content : null,
-            createdAt: new Date(
-              doc.timestamp || doc.$createdAt || doc.createdAt
-            ),
-            user: {
-              _id: doc.senderId,
-              name: "Member",
-            },
-          };
-        });
+            return {
+              _id: doc.$id,
+              text: isImage ? "" : content,
+              imageUrl,
+              receiverId: doc.receiverId,
+              messageType: doc.messageType || (isImage ? "image" : "text"),
+              fileId: isImage ? content : null,
+              createdAt: new Date(
+                doc.timestamp || doc.$createdAt || doc.createdAt
+              ),
+              user: {
+                _id: doc.senderId,
+                name: doc.senderName || "Member",
+              },
+            };
+          })
+        );
 
         setMessages(formatted);
         setErrorMessage(null);

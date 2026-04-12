@@ -148,7 +148,32 @@ export default function ChatScreen({
         Permission.write(Role.user(userId)),
       ]);
 
-      const imageUrl = storage.getFileView(bucketId, fileId);
+      // storage.getFileView may return binary data in the SDK; on web we must
+      // convert it to an object URL that <Image> can load.
+      let imageUrl = null;
+      try {
+        const fileViewResult = await storage.getFileView(bucketId, fileId);
+        if (Platform.OS === "web") {
+          // result is an ArrayBuffer — create a blob URL
+          const buf = fileViewResult;
+          const blob = new Blob([buf], { type: "image/jpeg" });
+          imageUrl = URL.createObjectURL(blob);
+        } else {
+          // Native SDK may return a URL or binary; try to handle common cases
+          if (typeof fileViewResult === "string") {
+            imageUrl = fileViewResult;
+          } else if (fileViewResult instanceof ArrayBuffer) {
+            // fallback for native if it returns ArrayBuffer
+            const blob = new Blob([fileViewResult], { type: "image/jpeg" });
+            imageUrl = URL.createObjectURL(blob);
+          } else {
+            imageUrl = fileViewResult;
+          }
+        }
+      } catch (err) {
+        console.warn("getFileView failed", err?.message || err);
+        imageUrl = null;
+      }
 
       const sentMessage = {
         ...optimisticMessage,

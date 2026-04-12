@@ -7,10 +7,18 @@ import {
   Image,
   TouchableOpacity,
 } from "react-native";
+import ImagePreviewModal from "./ImagePreviewModal";
 
 const MessageList = forwardRef(
   ({ messages, userId, onContentSizeChange, onDelete }, ref) => {
     const [failedImages, setFailedImages] = useState({});
+    const [previewUri, setPreviewUri] = useState(null);
+
+    const closePreview = () => {
+      // Do not revoke here because previewUri is also used by the message list;
+      // revoking it triggers image reload errors after closing the preview.
+      setPreviewUri(null);
+    };
     const renderMessage = ({ item }) => {
       const isMine = item?.user?._id === userId;
       const hasImage = item?.messageType === "image" && item?.imageUrl;
@@ -50,14 +58,19 @@ const MessageList = forwardRef(
               </TouchableOpacity>
             )}
             {hasImage && !imageFailed && (
-              <Image
-                source={{ uri: item.imageUrl }}
-                style={styles.messageImage}
-                resizeMode="cover"
-                onError={() =>
-                  setFailedImages((prev) => ({ ...prev, [item?._id]: true }))
-                }
-              />
+              <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={() => setPreviewUri(item.imageUrl)}
+              >
+                <Image
+                  source={{ uri: item.imageUrl }}
+                  style={styles.messageImage}
+                  resizeMode="cover"
+                  onError={() =>
+                    setFailedImages((prev) => ({ ...prev, [item?._id]: true }))
+                  }
+                />
+              </TouchableOpacity>
             )}
             {hasImage && imageFailed && (
               <View style={[styles.messageImage, styles.imageFallback]}>
@@ -76,19 +89,27 @@ const MessageList = forwardRef(
     };
 
     return (
-      <FlatList
-        ref={ref}
-        data={messages}
-        keyExtractor={(item) => `${item?._id}`}
-        renderItem={renderMessage}
-        contentContainerStyle={styles.listContent}
-        style={styles.list}
-        inverted
-        showsVerticalScrollIndicator
-        ListFooterComponent={<View style={{ height: 16 }} />}
-        maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
-        onContentSizeChange={onContentSizeChange}
-      />
+      <View style={{ flex: 1 }}>
+        <FlatList
+          ref={ref}
+          data={messages}
+          keyExtractor={(item) => `${item?._id}`}
+          renderItem={renderMessage}
+          contentContainerStyle={styles.listContent}
+          style={styles.list}
+          inverted
+          showsVerticalScrollIndicator
+          ListFooterComponent={<View style={{ height: 16 }} />}
+          maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+          onContentSizeChange={onContentSizeChange}
+        />
+
+        <ImagePreviewModal
+          visible={!!previewUri}
+          uri={previewUri}
+          onClose={closePreview}
+        />
+      </View>
     );
   }
 );
